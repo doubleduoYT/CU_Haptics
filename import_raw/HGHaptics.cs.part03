@@ -1,0 +1,350 @@
+gth, true);
+    }
+
+    public static void SoundCannonCharge(float progress, float distance)
+    {
+        progress = Mathf.Clamp01(progress);
+        float distanceStrength = DistanceStrength(distance, 64f, 0.30f);
+        if (distanceStrength <= 0f || Time.unscaledTime < nextSoundCannonPulse)
+            return;
+
+        float interval = Mathf.Lerp(0.72f, 0.12f, progress);
+        nextSoundCannonPulse = Time.unscaledTime + interval;
+        Play(Cue.SoundCannonCharge, SoundCannonChargePattern,
+            distanceStrength * Mathf.Lerp(0.52f, 1.18f, progress));
+    }
+
+    public static void SoundCannonBlast(bool underwater, bool blocked = false)
+    {
+        float strength = blocked ? 0.64f : (underwater ? 1.30f : 1.08f);
+        Play(Cue.SoundCannonBlast, SoundCannonBlastPattern, strength, true);
+    }
+
+    public static void GunSafety()
+    {
+        Play(Cue.GunSafety, GunSafetyPattern);
+    }
+
+    public static void GunLoad(bool magazine)
+    {
+        Play(Cue.GunLoad, GunLoadPattern, magazine ? 1.08f : 0.84f);
+    }
+
+    public static void GunUnload()
+    {
+        Play(Cue.GunUnload, GunUnloadPattern);
+    }
+
+    public static void GunTrigger(bool dry)
+    {
+        Play(Cue.GunTrigger, dry ? GunDryTriggerPattern : GunTriggerPattern,
+            dry ? 1f : 0.72f);
+    }
+
+    public static void GunRack(bool pullingBack)
+    {
+        Play(Cue.GunRack, GunRackPattern, pullingBack ? 1.04f : 0.88f);
+    }
+
+    public static void GunJam()
+    {
+        Play(Cue.GunJam, GunJamPattern, 1f, true);
+    }
+
+    public static void LockpickResistance(float stuckTime)
+    {
+        if (Time.unscaledTime < nextLockpickPulse)
+            return;
+
+        float amount = Mathf.Clamp01(stuckTime / 0.5f);
+        nextLockpickPulse = Time.unscaledTime + Mathf.Lerp(0.18f, 0.075f, amount);
+        Play(Cue.LockpickResistance, LockpickResistancePattern,
+            Mathf.Lerp(0.48f, 1.06f, amount));
+    }
+
+    public static void LockpickBreak()
+    {
+        Play(Cue.LockpickBreak, LockpickBreakPattern, 1f, true);
+    }
+
+    public static void LockpickSuccess()
+    {
+        Play(Cue.LockpickSuccess, LockpickSuccessPattern, 1f, true);
+    }
+
+    public static void DislocationHit(float speed, bool wrench)
+    {
+        float strength = Mathf.Clamp(speed / 22f, 0.62f, 1.22f);
+        if (wrench)
+            strength *= 0.86f;
+        Play(Cue.DislocationHit, DislocationHitPattern, strength, true);
+    }
+
+    public static void DislocationSuccess()
+    {
+        Play(Cue.DislocationSuccess, DislocationSuccessPattern, 1f, true);
+    }
+
+    public static void AmputationCut(float speed, float progress)
+    {
+        if (speed < 1.2f || Time.unscaledTime < nextAmputationPulse)
+            return;
+
+        nextAmputationPulse = Time.unscaledTime + 0.085f;
+        float strength = Mathf.Clamp(
+            0.40f + speed * 0.035f + Mathf.Clamp01(progress) * 0.24f,
+            0.42f, 1.02f);
+        Play(Cue.AmputationCut, AmputationCutPattern, strength);
+    }
+
+    public static void AmputationComplete()
+    {
+        Play(Cue.AmputationComplete, AmputationCompletePattern, 1f, true);
+    }
+
+    public static void WorldExplosion(Vector2 position, float radius, float velocity)
+    {
+        Body local = null;
+        try { if (PlayerCamera.main != null) local = PlayerCamera.main.body; } catch { }
+        if (local == null) return;
+
+        float now = Time.unscaledTime;
+        if (now - lastExplosionAt < 0.12f && Vector2.Distance(position, lastExplosionPosition) < 1.0f)
+            return;
+        lastExplosionAt = now;
+        lastExplosionPosition = position;
+        suppressDeathUntil = Mathf.Max(suppressDeathUntil, now + WorldExplosionPattern.DurationSeconds + 0.10f);
+
+        float distance = Vector2.Distance(position, local.transform.position);
+        float effectiveRange = Mathf.Max(8f, Mathf.Max(radius * 3.2f, 16f));
+        float falloff = 1f - Mathf.Clamp01(distance / effectiveRange);
+        if (falloff <= 0f) return;
+
+        
+        
+        float energy = Mathf.Clamp01(
+            Mathf.Sqrt(Mathf.Max(0.1f, radius) / 12f) * 0.58f +
+            Mathf.Sqrt(Mathf.Max(0f, velocity) / 65f) * 0.42f);
+        float strength = Mathf.Lerp(0.30f, 1.30f, Mathf.Pow(falloff, 0.72f)) * Mathf.Lerp(0.66f, 1.18f, energy);
+
+        try
+        {
+            if (Physics2D.Linecast(position, local.transform.position, LayerMask.GetMask("Ground")))
+                strength *= 0.68f;
+            if (local.inWater) strength *= 1.12f;
+        }
+        catch { }
+
+        Play(Cue.WorldExplosion, WorldExplosionPattern, Mathf.Clamp(strength, 0.30f, 1.35f), true);
+    }
+
+    public static void FallingHazardStart(Vector2 position, float mass)
+    {
+        float distance = DistanceFromLocalPlayer(position);
+        if (float.IsInfinity(distance)) return;
+        float distanceStrength = DistanceStrength(distance, 48f, 0.22f);
+        if (distanceStrength <= 0f) return;
+        float massStrength = Mathf.Lerp(0.52f, 1.24f, Mathf.Clamp01(Mathf.Sqrt(Mathf.Max(1f, mass) / 60f)));
+        Play(Cue.FallingHazardStart, FallingHazardStartPattern, distanceStrength * massStrength);
+    }
+
+    public static void FallingHazardImpact(Vector2 position, float speed, float mass, bool hitPlayer)
+    {
+        if (speed < 4f) return;
+        float distance = DistanceFromLocalPlayer(position);
+        if (float.IsInfinity(distance)) return;
+        float distanceStrength = DistanceStrength(distance, 54f, 0.24f);
+        if (distanceStrength <= 0f) return;
+        float impulse = Mathf.Clamp01((speed * Mathf.Sqrt(Mathf.Max(1f, mass))) / 150f);
+        float strength = distanceStrength * Mathf.Lerp(0.48f, 1.28f, impulse) * (hitPlayer ? 1.16f : 1f);
+        Play(Cue.FallingHazardImpact, FallingHazardImpactPattern, Mathf.Clamp(strength, 0.32f, 1.35f), hitPlayer);
+    }
+
+    public static void MinigameOpened(string typeName)
+    {
+        Play(Cue.MinigameOpen, MinigameOpenPattern, 0.70f);
+    }
+
+    public static void MinigameClosed(string typeName)
+    {
+        Play(Cue.MinigameClose, MinigameClosePattern, 0.72f);
+    }
+
+    public static void MinigameGrab(float strength = 1f)
+    {
+        Play(Cue.MinigameGrab, MinigameGrabPattern, Mathf.Clamp(strength, 0.55f, 1.15f));
+    }
+
+    public static void KeypadPress(bool clear)
+    {
+        Play(Cue.KeypadPress, KeypadPressPattern, clear ? 0.78f : 1f, true);
+    }
+
+    public static void BandageWrap(bool completedWrap, float handSpeed)
+    {
+        float strength = Mathf.Clamp(0.52f + handSpeed * 0.018f + (completedWrap ? 0.24f : 0f), 0.48f, 1.08f);
+        Play(Cue.BandageWrap, BandageWrapPattern, strength, completedWrap);
+    }
+
+    public static void ShrapnelPull(float speed, bool tweezers)
+    {
+        if (speed < 0.18f || Time.unscaledTime < nextShrapnelPulse) return;
+        nextShrapnelPulse = Time.unscaledTime + Mathf.Lerp(0.16f, 0.055f, Mathf.Clamp01(speed / 8f));
+        float strength = Mathf.Clamp(0.42f + speed * 0.055f, 0.42f, 1.12f) * (tweezers ? 0.78f : 1f);
+        Play(Cue.ShrapnelPull, ShrapnelPullPattern, strength);
+    }
+
+    public static void ShrapnelSlip()
+    {
+        Play(Cue.ShrapnelSlip, ShrapnelSlipPattern, 1f, true);
+    }
+
+    public static void SyringePuncture()
+    {
+        Play(Cue.SyringePuncture, SyringePuncturePattern, 1f, true);
+    }
+
+    public static void SyringeInject(float depth, float speed)
+    {
+        if (Time.unscaledTime < nextSyringePulse) return;
+        depth = Mathf.Clamp01(depth);
+        nextSyringePulse = Time.unscaledTime + Mathf.Lerp(0.16f, 0.055f, depth);
+        Play(Cue.SyringeInject, SyringeInjectPattern,
+            Mathf.Clamp(0.35f + depth * 0.42f + Mathf.Abs(speed) * 0.012f, 0.35f, 0.92f));
+    }
+
+    public static void SyringeSlip()
+    {
+        Play(Cue.SyringeSlip, SyringeSlipPattern, 1f, true);
+    }
+
+    public static void SelfHarmTap(float progress)
+    {
+        progress = Mathf.Clamp01(progress);
+        Play(Cue.SelfHarmTap, SelfHarmTapPattern, Mathf.Lerp(0.52f, 1.14f, progress), true);
+    }
+
+    public static void SelfHarmCut(float progress)
+    {
+        if (Time.unscaledTime < nextSelfHarmCutPulse) return;
+        nextSelfHarmCutPulse = Time.unscaledTime + Mathf.Lerp(0.12f, 0.055f, Mathf.Clamp01(progress));
+        Play(Cue.SelfHarmCut, SelfHarmCutPattern, Mathf.Lerp(0.70f, 1.15f, Mathf.Clamp01(progress)));
+    }
+
+    public static void AEDPadPlaced(bool finalPad)
+    {
+        Play(Cue.AEDPad, AEDPadPattern, finalPad ? 1.12f : 0.86f, true);
+    }
+
+    public static void AEDShock(bool success = true)
+    {
+        Play(Cue.AEDShock, AEDShockPattern, success ? 1.12f : 0.88f, true);
+    }
+
+    public static void DefibDial(float deltaDegrees)
+    {
+        if (Mathf.Abs(deltaDegrees) < 1.5f || Time.unscaledTime < nextDefibDialPulse) return;
+        nextDefibDialPulse = Time.unscaledTime + 0.045f;
+        Play(Cue.DefibDial, DefibDialPattern, Mathf.Clamp(0.42f + Mathf.Abs(deltaDegrees) * 0.016f, 0.42f, 0.85f));
+    }
+
+    public static void DefibCharge()
+    {
+        Play(Cue.DefibCharge, DefibChargePattern, 1f, true);
+    }
+
+    public static void DefibShock(bool success, float charge)
+    {
+        float strength = Mathf.Clamp(0.82f + Mathf.Clamp01(charge) * 0.35f, 0.82f, 1.22f);
+        if (!success) strength *= 0.88f;
+        Play(Cue.DefibShock, DefibShockPattern, strength, true);
+    }
+
+    public static void HandCrank(float deltaDegrees)
+    {
+        float d = Mathf.Abs(deltaDegrees);
+        if (d < 1.2f || Time.unscaledTime < nextHandCrankPulse) return;
+        nextHandCrankPulse = Time.unscaledTime + Mathf.Lerp(0.075f, 0.028f, Mathf.Clamp01(d / 24f));
+        Play(Cue.HandCrank, HandCrankPattern, Mathf.Clamp(0.40f + d * 0.022f, 0.40f, 0.92f));
+    }
+
+    public static void SelfDestructPulse(float progress)
+    {
+        progress = Mathf.Clamp01(progress);
+        Play(Cue.SelfDestructPulse, SelfDestructPulsePattern,
+            Mathf.Lerp(0.58f, 1.28f, progress * progress), true);
+    }
+
+    private static float DistanceFromLocalPlayer(Vector2 position)
+    {
+        try
+        {
+            if (PlayerCamera.main != null && PlayerCamera.main.body != null)
+                return Vector2.Distance(position, PlayerCamera.main.body.transform.position);
+        }
+        catch { }
+        return float.PositiveInfinity;
+    }
+
+    private static float DistanceStrength(float distance, float maxDistance, float minimum)
+    {
+        float normalized = 1f - Mathf.Clamp01(distance / Mathf.Max(1f, maxDistance));
+        if (normalized <= 0f)
+            return 0f;
+        return Mathf.Lerp(minimum, 1.15f, normalized);
+    }
+
+    public static void Death()
+    {
+        
+        
+        if (Time.unscaledTime < suppressDeathUntil) return;
+        Play(Cue.Death, DeathPattern, 1f, true);
+    }
+
+    private static void Play(
+        Cue cue,
+        Pattern pattern,
+        float strength = 1f,
+        bool force = false)
+    {
+        if (!Enabled || !Application.isFocused)
+            return;
+
+        HGHapticsDriver.EnsureReady();
+
+        float now = Time.unscaledTime;
+        float last;
+        if (!force && LastPlayed.TryGetValue(cue, out last) &&
+            now - last < pattern.cooldown)
+        {
+            return;
+        }
+
+        if (!force && now < protectedUntil && pattern.priority < protectedPriority)
+            return;
+
+        LastPlayed[cue] = now;
+        protectedPriority = pattern.priority;
+        protectedUntil = now + Mathf.Clamp(
+            pattern.DurationSeconds * 0.72f,
+            0.035f,
+            0.65f);
+
+        HGHapticsAndroidBackend.Play(
+            pattern,
+            Mathf.Clamp(strength * Intensity, 0.20f, 1.35f),
+            ControllerConnected);
+    }
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+    private static void Bootstrap()
+    {
+        HGHapticsDriver.EnsureReady();
+    }
+}
+
+public sealed class HGHapticsDriver : MonoBehaviour
+{
+    private static HGHapticsDriver instance;
+    private static bool controllerConnected
