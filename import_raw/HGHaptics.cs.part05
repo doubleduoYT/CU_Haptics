@@ -1,0 +1,31 @@
+celAll()
+    {
+#if UNITY_ANDROID && !UNITY_EDITOR
+        Cancel(phoneVibrator);
+        for (int i = 0; i < ControllerVibrators.Count; i++)
+            Cancel(ControllerVibrators[i]);
+#endif
+    }
+
+    private static void Cancel(AndroidJavaObject vibrator)
+    {
+#if UNITY_ANDROID && !UNITY_EDITOR
+        if (vibrator == null)
+            return;
+        try { vibrator.Call("cancel"); }
+        catch { }
+#endif
+    }
+
+    private static void DisposeControllerVibrators()
+    {
+#if UNITY_ANDROID && !UNITY_EDITOR
+        for (int i = 0; i < ControllerVibrators.Count; i++)
+        {
+            if (ControllerVibrators[i] != null)
+                ControllerVibrators[i].Dispose();
+        }
+        ControllerVibrators.Clear();
+#endif
+    }
+}
