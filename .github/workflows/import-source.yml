@@ -1,0 +1,30 @@
+name: Import haptics source
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'import/HGHaptics.cs.gz.b64.part*'
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    if: ${{ hashFiles('import/HGHaptics.cs.gz.b64.part*') != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore HGHaptics.cs
+        run: |
+          mkdir -p Source
+          cat import/HGHaptics.cs.gz.b64.part* | base64 -d > /tmp/HGHaptics.cs.gz
+          gzip -dc /tmp/HGHaptics.cs.gz > Source/HGHaptics.cs
+          rm -rf import
+      - name: Commit imported source
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Add HGHaptics runtime source"
+          git push
