@@ -1,22 +1,39 @@
-# CU_Haptics
+# CU Haptics
 
-Casualties: Unknown 모바일 포팅에서 햅틱 피드백이 연결되는 부분을 정리한 소스 저장소야.
+**CU Haptics** is the haptic feedback system used by the Casualties: Unknown mobile port. It turns gameplay events into short vibration patterns so actions feel different instead of using one generic vibration.
 
-## 이게 뭐야?
+## What it adds
 
-게임 안의 총기, 근접 공격, 미니게임, 폭발, 지진, 함정 같은 이벤트가 발생할 때 `HGHaptics.*` 함수를 호출해서 기기 햅틱 피드백을 요청하는 코드들을 모아 둔 저장소야.
+The system includes dedicated haptic patterns for weapons, melee hits, damage, landing, explosions, earthquakes, radiation, hazards, minigames, medical interactions, UI feedback and death events.
 
-## 뭘 해?
+It also supports intensity control, per-event cooldowns and priority handling so small feedback does not interrupt stronger effects.
 
-확인된 호출은 총 발사/장전/재밍, 근접 타격, 붕대·절단·탈구·파편 제거·주사기·자해·락픽·키패드 미니게임, 점프패드, 지뢰, 간헐천, 낙하물, 사운드 캐논, 방사선 라인, 지진과 폭발 등을 포함해.
+On Android, the runtime can use the phone vibrator or compatible controller vibration hardware when available.
 
-## 어떻게 작동해?
+## How it works
 
-각 게임 스크립트가 상황에 맞는 값(충격량, 거리, 진행도, 속도 등)을 `HGHaptics` 메서드에 전달하는 구조야. 예를 들어 총을 발사하면 반동과 탄종 정보가, 폭발이면 위치·범위·힘이 전달돼.
+Gameplay code calls the matching `HGHaptics` method when an event happens. For example:
 
-## 중요한 점
+- `HGHaptics.Gunshot(...)` for firearm recoil
+- `HGHaptics.MeleeHit(...)` for melee impacts
+- `HGHaptics.WorldExplosion(...)` for nearby explosions
+- `HGHaptics.Earthquake(...)` for world shaking
+- `HGHaptics.BandageWrap(...)`, `SyringeInject(...)` and other medical/minigame interactions
 
-제공된 `CU_Mobile_SourceCode.zip`에는 **`HGHaptics` 클래스의 실제 구현 파일이 포함되어 있지 않았어.** 그래서 이 저장소에는 임의로 구현을 만들어 넣지 않고, ZIP에서 실제로 확인되는 햅틱 호출 지점만 그대로 정리했어.
+Each call is converted into a timed amplitude pattern, then routed to the active haptic output.
 
-- `HapticsCallSites.md`: 햅틱 호출이 들어 있는 21개 소스 파일과 실제 호출 코드
-- Source: `CU_Mobile_SourceCode.zip`
+## Source
+
+The complete runtime implementation is available here:
+
+- [HGHaptics.cs](Source/HGHaptics.cs)
+
+This repository contains the haptics module itself. The game-side event calls are integration points in the C:U mobile source and are intentionally kept separate from the runtime implementation.
+
+## Download
+
+Use the latest release for the packaged C:U mobile source mod. GitHub also provides the repository source code automatically with every release.
+
+## Compatibility
+
+Designed for the Casualties: Unknown mobile port and Unity's Android runtime. The module uses Unity APIs and is intended to be compiled as part of the game project.
