@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'import/HGHaptics.cs.gz.b64.part*'
+      - '.github/workflows/import-source.yml'
 
 permissions:
   contents: write
@@ -12,19 +13,28 @@ permissions:
 jobs:
   import:
     runs-on: ubuntu-latest
-    if: ${{ hashFiles('import/HGHaptics.cs.gz.b64.part*') != '' }}
     steps:
       - uses: actions/checkout@v4
       - name: Restore HGHaptics.cs
+        shell: bash
         run: |
+          if ! compgen -G "import/HGHaptics.cs.gz.b64.part*" > /dev/null; then
+            echo "No staged source parts remain."
+            exit 0
+          fi
           mkdir -p Source
           cat import/HGHaptics.cs.gz.b64.part* | base64 -d > /tmp/HGHaptics.cs.gz
           gzip -dc /tmp/HGHaptics.cs.gz > Source/HGHaptics.cs
           rm -rf import
       - name: Commit imported source
+        shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
+          if git diff --cached --quiet; then
+            echo "Nothing to commit."
+            exit 0
+          fi
           git commit -m "Add HGHaptics runtime source"
           git push
